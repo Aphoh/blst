@@ -1758,7 +1758,7 @@ macro_rules! pippenger_mult_impl {
         $mult:ident,
     ) => {
         pub struct $points {
-            points: Vec<$point_affine>,
+            pub points: Vec<$point_affine>,
         }
 
         impl $points {
@@ -1807,12 +1807,18 @@ macro_rules! pippenger_mult_impl {
             }
 
             pub fn mult(&self, scalars: &[u8], nbits: usize) -> $point {
-                let npoints = self.points.len();
                 let nbytes = (nbits + 7) / 8;
-
-                if scalars.len() < nbytes * npoints {
-                    panic!("scalars length mismatch");
+                if scalars.len() > nbytes * self.points.len() {
+                    panic!("too many scalars");
                 }
+
+                if scalars.len() % nbytes != 0 {
+                    panic!("scalars len does not fit in correct number of bytes");
+                }
+
+                let npoints = scalars.len() / nbytes;
+                let points = &self.points[..npoints];
+
 
                 let pool = mt::da_pool();
                 let ncpus = pool.max_count();
@@ -1869,7 +1875,6 @@ macro_rules! pippenger_mult_impl {
                 }
                 let grid = &grid[..];
 
-                let points = &self.points[..];
                 let sz = unsafe { $scratch_sizeof(0) / 8 };
 
                 let mut row_sync: Vec<AtomicUsize> = Vec::with_capacity(ny);
